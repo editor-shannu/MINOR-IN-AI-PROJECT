@@ -1,0 +1,8 @@
+env/
+__pycache__/
+*.pkl
+*.zip
+*.rar
+*.tmp
+*.cache
+notebooks/
