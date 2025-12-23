@@ -1,0 +1,10 @@
+env/
+__pycache__/
+*.pkl
+*.zip
+*.rar
+*.tmp
+*.cache
+notebooks/
+# Streamlit secrets
+src/.streamlit/secrets.toml

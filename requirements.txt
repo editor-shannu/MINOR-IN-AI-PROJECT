@@ -1,0 +1,11 @@
+streamlit
+pandas
+numpy
+transformers
+torch
+neuralprophet
+statsmodels
+pytrends
+shap
+plotly
+openai
