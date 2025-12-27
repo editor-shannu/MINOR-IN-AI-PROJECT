@@ -93,6 +93,20 @@ st.subheader("⚠️ AI Early Warning System (Multi-Signal)")
 
 latest_risk = yearly_df["risk_score"].iloc[-1]
 
+# =======================
+# HUMAN READABLE SIGNALS
+# =======================
+
+def risk_label(score):
+    if score > 1.0:
+        return "HIGH", "🔴"
+    elif score > 0.3:
+        return "MODERATE", "🟠"
+    else:
+        return "LOW", "🟢"
+
+RISK_TEXT, RISK_ICON = risk_label(latest_risk)
+
 if latest_risk > 1.0:
     st.error("🔴 HIGH RISK: Strong outbreak signals detected. Immediate demand surge likely.")
 elif latest_risk > 0.3:
@@ -112,6 +126,16 @@ fig1 = px.line(
     markers=True
 )
 st.plotly_chart(fig1, use_container_width=True)
+
+if st.button("📊 Explain this chart"):
+    explanation = (
+        f"{RISK_ICON} **Risk Level: {RISK_TEXT}**\n\n"
+        "This chart compares disease cases and medicine sales over time. "
+        "Increases in disease cases are usually followed by higher medicine sales, "
+        "indicating a lag-based demand response in the healthcare market."
+    )
+    st.session_state.chat.append(("AI", explanation))
+
 
 # =======================
 # SECTION 1A — Relationship
@@ -195,6 +219,15 @@ forecast_volatility = np.std(res.resid)
 
 confidence = max(0, 100 - forecast_volatility / yearly_df["Total_cases"].mean() * 100)
 
+CONFIDENCE_TEXT = (
+    "High confidence forecast"
+    if confidence >= 70
+    else "Moderate confidence forecast"
+    if confidence >= 40
+    else "Low confidence forecast"
+)
+
+
 st.metric(
     "📊 Forecast Confidence",
     f"{confidence:.1f}%",
@@ -254,40 +287,43 @@ def detect_intent(text):
         return "market"
     return "general"
 
-
-# -----------------------
-# Offline AI intelligence
-# -----------------------
 def offline_reply(intent, df):
     latest = df.iloc[-1]
 
+    header = f"{RISK_ICON} **Current Risk Level: {RISK_TEXT}**\n\n"
+
     if intent == "greeting":
-        return "Hello! I can help analyze disease trends, market demand, and outbreak risks."
+        return header + (
+            "Hello. I analyze disease outbreaks, medicine demand, and "
+            "healthcare market risks using real-time statistical signals."
+        )
 
     if intent == "risk":
-        return (
-            f"The current risk score is {latest['risk_score']:.2f}. "
-            "It is derived from disease growth, sales growth, public sentiment changes, "
-            "and search trend spikes."
+        return header + (
+            f"The outbreak risk is **{RISK_TEXT}**. "
+            f"Recent case growth is {latest['case_growth']:.2%}, "
+            f"sales growth is {latest['sales_growth']:.2%}, "
+            "indicating pressure on medicine demand."
         )
 
     if intent == "forecast":
-        return (
-            "Forecasts are generated using time-series models like ARIMA, "
-            "which capture historical trends and seasonality in disease cases."
+        return header + (
+            f"{CONFIDENCE_TEXT}. "
+            "The forecast is driven by historical volatility and trend persistence "
+            "in disease case data."
         )
 
     if intent == "market":
-        return (
-            "Market behavior typically reacts to disease outbreaks with a time lag. "
-            "Rising cases and public concern often lead to increased medicine demand."
+        return header + (
+            "Market behavior shows a lagged response. "
+            "Disease case increases are followed by higher medicine sales "
+            "due to precautionary buying and treatment demand."
         )
 
-    return (
-        "I can explain outbreak risks, forecasts, and market demand patterns. "
-        "Try asking about risk, forecast, or market behavior."
+    return header + (
+        "I can explain current risks, forecast confidence, "
+        "and healthcare market behavior. Try asking about risk or forecast."
     )
-
 
 # -----------------------
 # LLM-powered reply
@@ -295,31 +331,32 @@ def offline_reply(intent, df):
 def llm_reply(question, df):
     import openai
 
-    context = f"""
-    Year: {df['year'].iloc[-1]}
-    Total cases: {df['Total_cases'].iloc[-1]}
-    Sales: {df['sales'].iloc[-1]}
-    Risk score: {df['risk_score'].iloc[-1]:.2f}
-    """
-
     prompt = f"""
-    You are a healthcare market intelligence AI.
-    Use the data below to answer analytically and clearly.
+You are a healthcare market intelligence AI.
 
-    DATA:
-    {context}
+Current risk level: {RISK_TEXT}
+Forecast confidence: {CONFIDENCE_TEXT}
 
-    QUESTION:
-    {question}
-    """
+DATA CONTEXT:
+Year: {df['year'].iloc[-1]}
+Total cases: {df['Total_cases'].iloc[-1]}
+Medicine sales: {df['sales'].iloc[-1]}
+Risk score: {df['risk_score'].iloc[-1]:.2f}
+
+QUESTION:
+{question}
+
+Respond like a professional market analyst.
+"""
 
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.3
+        temperature=0.25
     )
 
     return response.choices[0].message.content
+
 
 
 # -----------------------
@@ -347,7 +384,10 @@ for speaker, msg in st.session_state.chat:
 
 # Single info banner (no repetition)
 if not OPENAI_AVAILABLE:
-    st.info("ℹ️ AI Assistant is running in offline intelligence mode. Add OPENAI_API_KEY for full LLM explanations.")
+    st.caption(
+    "🧠 AI Assistant is running in **offline intelligence mode**, "
+    "using real data signals. Connect an API key to enable deep LLM explanations."
+)
 
 # =======================
 # Dataset Preview
